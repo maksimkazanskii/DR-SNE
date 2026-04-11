@@ -8,15 +8,20 @@ def run_density_tsne(
         P,
         knn_indices,
         rho_high,
-        n_iter=300,
+        n_iter=600,
         warmup=50,
         lr=2.0,
         lambda_density=0.01,
+        seed = 42,
+        verbose = True
 ):
     # =========================================================
     # INIT
     # =========================================================
-    Z_init = PCA(n_components=2).fit_transform(X)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    Z_init = np.random.normal(0, 1e-4, size=(X.shape[0], 2))
     Z = torch.tensor(Z_init, dtype=torch.float32, requires_grad=True)
 
     optimizer = torch.optim.Adam([Z], lr=lr)
@@ -77,7 +82,7 @@ def run_density_tsne(
         volume = torch.sqrt(dists_sq + 1e-8).sum(dim=1)
 
         rho_low = neighbors.shape[1] / volume
-        rho_low = rho_low / (rho_low.mean() + 1e-8)
+        rho_low = rho_low / (rho_low.detach().mean() + 1e-8)
 
         density_loss = (
                 (log_rho_high - torch.log(rho_low + 1e-8)) ** 2
@@ -107,7 +112,7 @@ def run_density_tsne(
         history["kl"].append(kl.item())
         history["density"].append(density_loss.item())
 
-        if it % 50 == 0:
+        if it % 50 == 0 and verbose:
             print(
                 f"[Density t-SNE] Iter {it}: "
                 f"KL={kl.item():.6f}, Density={density_loss.item():.6f}"

@@ -1,17 +1,16 @@
-import numpy as np
 import torch
-import matplotlib.pyplot as plt
 import time
 import umap
-
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 from sklearn.manifold import TSNE, trustworthiness
 from sklearn.datasets import load_digits
 from sklearn.metrics import pairwise_distances, silhouette_score
 import os, csv
-from openTSNE import TSNE as OpenTSNE
+import numpy as np
+import pacmap
+import trimap
+
 
 from density_tsne import run_density_tsne
 
@@ -82,11 +81,12 @@ def save_embeddings_image(Z_list, titles, y, dataset_name):
 
     plt.tight_layout()
 
-    filename = f"output/images/comparison/{dataset_name}_comparison.png"
+    filename = f"{dataset_name}_comparison.png"
     plt.savefig(filename, dpi=300)
     plt.close()
 
     print(f"Saved embedding image to {filename}")
+
 
 
 def stress_metric(X, Z):
@@ -121,26 +121,16 @@ def save_ablation_to_csv(dataset_name, results):
 
     print(f"\nAblation saved to {filename}")
 
-
-def run_densne(X):
-    tsne = OpenTSNE(
-        n_components=2,
-        perplexity=30,
-        initialization="pca",
-        n_jobs=8,
-        random_state=42
-    )
-    return tsne.fit(X)
-
-
-def save_results_to_csv(dataset_name, results):
-    filename = f"output/{dataset_name}_results.csv"
+def save_best_results_to_csv(dataset_name, results):
+    filename = f"{dataset_name}_best_results.csv"
 
     with open(filename, mode="w", newline="") as file:
         writer = csv.DictWriter(
             file,
             fieldnames=[
                 "method",
+                "param_name",
+                "param_value",
                 "trustworthiness",
                 "continuity",
                 "density_corr",
@@ -155,6 +145,8 @@ def save_results_to_csv(dataset_name, results):
         for r in results:
             writer.writerow({
                 "method": r["name"],
+                "param_name": r["param_name"],
+                "param_value": r["param_value"],
                 "trustworthiness": r["trustworthiness"],
                 "continuity": r["continuity"],
                 "density_corr": r["density_corr"],
@@ -163,8 +155,142 @@ def save_results_to_csv(dataset_name, results):
                 "time_sec": r["time"]
             })
 
-    print(f"\nResults saved to {filename}")
+    print(f"\nBest results saved to {filename}")
 
+def select_best_under_tw(candidates, tw_threshold):
+    valid = [c for c in candidates if c["trustworthiness"] >= tw_threshold]
+
+    if len(valid) == 0:
+        print(f"No configuration reached trustworthiness >= {tw_threshold:.3f}")
+        return None
+
+    best = max(valid, key=lambda x: x["density_corr"])
+    return best
+
+def tune_1d_method(
+        method_name,
+        X,
+        y,
+        knn_indices,
+        rho_high,
+        seed,
+        tw_threshold,
+        param_name,
+        param_values
+):
+    candidates = []
+
+    for param_value in param_values:
+        print(f"\n{method_name} | {param_name}={param_value}")
+
+        if method_name == "t-SNE":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_tsne,
+                X,
+                seed,
+                param_value
+            )
+
+
+
+        elif method_name == "UMAP":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_umap,
+                X,
+                seed,
+                param_value
+            )
+
+        elif method_name == "PaCMAP":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_pacmap,
+                X,
+                seed,
+                n_neighbors=param_value
+            )
+
+        elif method_name == "TriMAP":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_trimap,
+                X,
+                seed,
+                n_inliers=param_value
+            )
+        elif method_name == "DensMAP":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_densmap,
+                X,
+                seed,
+                dens_lambda=param_value   # 🔥 SAFE
+            )
+
+        else:
+            raise ValueError(f"Unsupported method: {method_name}")
+
+        metrics = compute_metrics_for_method(
+            method_name,
+            X,
+            Z,
+            knn_indices,
+            rho_high,
+            runtime,
+            y
+        )
+        metrics["param_name"] = param_name
+        metrics["param_value"] = param_value
+        metrics["Z"] = Z
+        candidates.append(metrics)
+
+    best = select_best_under_tw(candidates, tw_threshold)
+    return best, candidates
+
+def tune_density_tsne(
+        X,
+        y,
+        P,
+        knn_indices,
+        rho_high,
+        seed,
+        tw_threshold
+):
+    lambda_grid = [0.00025, 0.0005, 0.001, 0.002, 0.004, 0.008, 0.016, 0.032, 0.064, 0.128]
+    candidates = []
+
+    for lambda_density in lambda_grid:
+        print(f"\nDensity t-SNE | lambda_density={lambda_density}")
+
+        (Z, _), runtime = timed_run(
+            f"Density t-SNE (lambda={lambda_density})",
+            run_density_tsne,
+            X,
+            P,
+            knn_indices,
+            rho_high,
+            lambda_density=lambda_density,
+            seed=seed
+        )
+
+        metrics = compute_metrics_for_method(
+            "Density t-SNE",
+            X,
+            Z,
+            knn_indices,
+            rho_high,
+            runtime,
+            y
+        )
+        metrics["param_name"] = "lambda_density"
+        metrics["param_value"] = lambda_density
+        metrics["Z"] = Z
+        candidates.append(metrics)
+
+    best = select_best_under_tw(candidates, tw_threshold)
+    return best, candidates
 
 # =========================================================
 # METRICS
@@ -245,7 +371,7 @@ def load_data(n_samples=1500, random_state=42):
 # DENSITY
 # =========================================================
 def compute_knn_density(X, k=30):
-    nbrs = NearestNeighbors(n_neighbors=k).fit(X)
+    nbrs = NearestNeighbors(n_neighbors=k, algorithm="brute").fit(X)
     distances, indices = nbrs.kneighbors(X)
 
     volume = distances[:, 1:].sum(axis=1) + 1e-8
@@ -260,7 +386,7 @@ def compute_knn_density(X, k=30):
 # =========================================================
 def compute_P(X, perplexity=30.0, tol=1e-5):
     n = X.shape[0]
-    D = pairwise_distances(X, squared=True)
+    D = pairwise_distances(X, squared=True, n_jobs=1)
 
     P = np.zeros((n, n), dtype=np.float32)
     log_perp = np.log(perplexity)
@@ -299,32 +425,75 @@ def compute_P(X, perplexity=30.0, tol=1e-5):
 # =========================================================
 # BASELINES
 # =========================================================
-def run_tsne(X):
-    tsne = TSNE(n_components=2, perplexity=30, init="pca", random_state=42)
+def run_tsne(X, seed=42, perplexity=30):
+    tsne = TSNE(
+        n_components=2,
+        perplexity=perplexity,
+        init="random",
+        random_state=seed
+    )
     return tsne.fit_transform(X)
 
-
-def run_umap(X):
-    reducer = umap.UMAP(
-        n_neighbors=30,
-        min_dist=0.1,
+def run_pacmap(X, seed=42, n_neighbors=10):
+    reducer = pacmap.PaCMAP(
         n_components=2,
-        random_state=None
+        n_neighbors=n_neighbors,
+        MN_ratio=0.5,
+        FP_ratio=2.0,
+        random_state=seed
     )
     return reducer.fit_transform(X)
 
 
-def run_densmap(X):
+def run_trimap(X, seed=42, n_inliers=10):
+    reducer = trimap.TRIMAP(
+        n_inliers=n_inliers,
+        n_outliers=5,
+        n_random=5,
+        random_state=seed
+    )
+    return reducer.fit_transform(X)
+
+def run_umap(X, seed=42, n_neighbors=30):
     reducer = umap.UMAP(
-        n_neighbors=30,
+        n_neighbors=n_neighbors,
+        min_dist=0.1,
+        n_components=2,
+        random_state=seed
+    )
+    return reducer.fit_transform(X)
+
+
+def run_densmap(
+        X,
+        seed=42,
+        dens_lambda=2.0,
+        n_neighbors=15
+):
+    """
+    Standard DensMAP embedding
+    """
+
+    reducer = umap.UMAP(
+        n_neighbors=n_neighbors,
         min_dist=0.1,
         n_components=2,
         densmap=True,
-        dens_lambda=2.0,
+        dens_lambda=dens_lambda,
         dens_frac=0.3,
-        random_state=None
+        output_dens=True,
+        random_state=seed
     )
-    return reducer.fit_transform(X)
+
+    result = reducer.fit_transform(X, return_dens=True)
+
+    # 🔥 robust handling across UMAP versions
+    if isinstance(result, tuple):
+        Z = result[0]
+    else:
+        Z = result
+
+    return Z
 
 
 # =========================================================
@@ -369,64 +538,3 @@ def compute_metrics_for_method(name, X, Z, knn_indices, rho_high, runtime, y=Non
         "time": runtime
     }
 
-
-# =========================================================
-# MAIN
-# =========================================================
-def main():
-
-    dataset_name = "digits"
-
-    print("Loading data...")
-    X, y = load_data()
-    X, y = clean_labels(X, y)
-    print("Computing density...")
-    rho_high, knn_indices = compute_knn_density(X)
-
-    print("Computing P...")
-    P = compute_P(X)
-
-    print("\nRunning methods...")
-
-    Z_tsne, t_tsne = timed_run("t-SNE", run_tsne, X)
-
-    (Z_density, history), t_density = timed_run(
-        "Density t-SNE",
-        run_density_tsne,
-        X, P, knn_indices, rho_high
-    )
-
-    Z_umap, t_umap = timed_run("UMAP", run_umap, X)
-    Z_densmap, t_densmap = timed_run("DensMAP", run_densmap, X)
-
-    Z_densne, t_densne = timed_run("den-SNE", run_densne, X)
-
-    print("\n--- Metrics ---")
-
-    results = []
-
-    results.append(
-        compute_metrics_for_method("t-SNE", X, Z_tsne, knn_indices, rho_high, t_tsne, y)
-    )
-
-    results.append(
-        compute_metrics_for_method("Density t-SNE", X, Z_density, knn_indices, rho_high, t_density, y)
-    )
-
-    results.append(
-        compute_metrics_for_method("UMAP", X, Z_umap, knn_indices, rho_high, t_umap, y)
-    )
-
-    results.append(
-        compute_metrics_for_method("DensMAP", X, Z_densmap, knn_indices, rho_high, t_densmap, y)
-    )
-
-    results.append(
-        compute_metrics_for_method("den-SNE", X, Z_densne, knn_indices, rho_high, t_densne, y)
-    )
-
-    save_results_to_csv(dataset_name, results)
-
-
-if __name__ == "__main__":
-    main()

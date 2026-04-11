@@ -1,112 +1,85 @@
-import numpy as np
 from sklearn.datasets import load_digits, fetch_openml
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-import torchvision
-import torchvision.transforms as transforms
-import torch
-import torch.nn as nn
 import os
+os.environ["PYTHONHASHSEED"] = "0"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 from comparison import (
     compute_knn_density,
     compute_P,
-    run_tsne,
-    run_density_tsne,
-    run_umap,
-    run_densmap,
-    timed_run,
-    compute_metrics_for_method,
-    save_results_to_csv,
-    save_embeddings_image
+    save_best_results_to_csv,
+    tune_density_tsne,
+    tune_1d_method
 )
-import scanpy as sc
-import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import scanpy as sc
 import numpy as np
+import random
+def set_global_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
 
-def download_tabula_muris(save_path="data/tabula_muris.h5ad"):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+
+    try:
+        import torch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        torch.use_deterministic_algorithms(True)
+    except:
+        pass
+
+
+
+
+
+def save_interim_results(
+        Z_list,
+        titles,
+        y,
+        results,
+        dataset_name,
+        seed,
+        output_dir="output/interim"
+):
     import os
-    import requests
+    os.makedirs(output_dir, exist_ok=True)
 
-    os.makedirs("data", exist_ok=True)
+    for Z, title, res in zip(Z_list, titles, results):
 
-    url = "https://datasets.cellxgene.cziscience.com/8d4c3f02-9f7a-4b2d-9b5b-ecf6f4d0e9c3.h5ad"
+        method = res["name"]
+        param_name = res["param_name"]
+        param_value = res["param_value"]
 
-    print("Downloading Tabula Muris Senis (FACS)...")
-
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(save_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-    print(f"Saved to {save_path}")
-
-
-def load_tabula_muris(path="data/tabula_muris.h5ad", n_samples=5000):
-    import scanpy as sc
-    import numpy as np
-    import os
-
-    print("Loading Tabula Muris...")
-
-    if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"{path} not found. Run download_tabula_muris() first."
+        filename = (
+            f"{dataset_name}_seed_{seed}_"
+            f"{method}_{param_name}_{param_value}.npz"
         )
 
-    adata = sc.read_h5ad(path)
+        filepath = os.path.join(output_dir, filename)
 
-    # -------------------------
-    # Labels (verified column)
-    # -------------------------
-    if "cell_ontology_class" not in adata.obs:
-        raise ValueError("Expected 'cell_ontology_class' in dataset")
+        np.savez_compressed(
+            filepath,
+            Z=Z,
+            y=y,
+            method=method,
+            param_name=param_name,
+            param_value=param_value,
+            trustworthiness=res["trustworthiness"],
+            continuity=res["continuity"],
+            density_corr=res["density_corr"],
+            silhouette=res["silhouette"],
+            stress=res["stress"],
+            time=res["time"]
+        )
 
-    y = np.array(adata.obs["cell_ontology_class"])
-
-    # -------------------------
-    # Features
-    # -------------------------
-    X = adata.X
-    if hasattr(X, "toarray"):
-        X = X.toarray()
-
-    # -------------------------
-    # Clean labels
-    # -------------------------
-    mask = (y != "unknown") & (y != "NA") & (y != "")
-    X = X[mask]
-    y = y[mask]
-
-    # -------------------------
-    # Encode labels
-    # -------------------------
-    _, y = np.unique(y, return_inverse=True)
-
-    # -------------------------
-    # Remove tiny classes
-    # -------------------------
-    counts = np.bincount(y)
-    valid = np.where(counts >= 5)[0]
-
-    mask = np.isin(y, valid)
-    X = X[mask]
-    y = y[mask]
-
-    # -------------------------
-    # Subsample (IMPORTANT for speed)
-    # -------------------------
-    if n_samples is not None and len(X) > n_samples:
-        idx = np.random.choice(len(X), n_samples, replace=False)
-        X = X[idx]
-        y = y[idx]
-
-    print(f"Final dataset: {X.shape}, classes: {len(np.unique(y))}")
-
-    return X, y
+        print(f"Saved interim: {filepath}")
 
 def load_spiral_density(n_samples=5000):
 
@@ -126,33 +99,27 @@ def load_spiral_density(n_samples=5000):
 
     return X, np.zeros(n_samples), rho_true
 
-def load_synthetic_density(n_samples=5000, n_clusters=4, dim=50):
+def load_synthetic_density(n_samples=5000, n_clusters=4, dim=50, seed=42):
 
-    import numpy as np
     from sklearn.preprocessing import StandardScaler
     from sklearn.decomposition import PCA
 
-    np.random.seed(42)
+    rng = np.random.RandomState(seed)
 
     X_list = []
     y_list = []
     rho_true = []
 
     samples_per_cluster = n_samples // n_clusters
-
-    # Different variances → different densities
     variances = np.linspace(0.2, 2.0, n_clusters)
 
     for i, var in enumerate(variances):
 
-        mean = np.random.randn(dim) * 5
+        mean = rng.randn(dim) * 5
         cov = np.eye(dim) * var
 
-        X_cluster = np.random.multivariate_normal(
-            mean, cov, size=samples_per_cluster
-        )
+        X_cluster = rng.multivariate_normal(mean, cov, size=samples_per_cluster)
 
-        # True density ∝ 1 / variance^(dim/2)
         density = 1.0 / (var ** (dim / 2))
 
         X_list.append(X_cluster)
@@ -163,24 +130,23 @@ def load_synthetic_density(n_samples=5000, n_clusters=4, dim=50):
     y = np.concatenate(y_list)
     rho_true = np.concatenate(rho_true)
 
-    # Shuffle
-    idx = np.random.permutation(len(X))
+    idx = rng.permutation(len(X))
     X = X[idx]
     y = y[idx]
     rho_true = rho_true[idx]
 
-    # Normalize + optional PCA (like your pipeline)
     X = StandardScaler().fit_transform(X)
 
     if X.shape[1] > 50:
-        X = PCA(n_components=50).fit_transform(X)
-
-    print("Synthetic clusters:", n_clusters)
+        X = PCA(n_components=50, random_state=seed, svd_solver="randomized").fit_transform(X)
 
     return X, y, rho_true
 
 def load_tumor_melanoma(path="data/melanoma.h5ad"):
     print("Loading melanoma tumor dataset...")
+
+    import scanpy as sc
+    import numpy as np
 
     # Load dataset (fallback to PBMC if file not found)
     try:
@@ -189,12 +155,16 @@ def load_tumor_melanoma(path="data/melanoma.h5ad"):
         print(f"File {path} not found. Using fallback dataset (pbmc3k).")
         adata = sc.datasets.pbmc3k()
 
-    # Extract features (X)
+    # -------------------------
+    # Features
+    # -------------------------
     X = adata.X
     if hasattr(X, "toarray"):
-        X = X.toarray()  # Convert sparse matrix to dense if necessary
+        X = X.toarray()
 
-    # Try to get labels from available keys (cell_type, cell_subtype, or annotation)
+    # -------------------------
+    # Labels
+    # -------------------------
     if 'cell_type' in adata.obs:
         y = adata.obs['cell_type'].values
     elif 'cell_subtype' in adata.obs:
@@ -202,26 +172,33 @@ def load_tumor_melanoma(path="data/melanoma.h5ad"):
     elif 'annotation' in adata.obs:
         y = adata.obs['annotation'].values
     else:
-        # If no labels, compute Leiden clustering
         sc.pp.pca(adata)
         sc.pp.neighbors(adata)
         sc.tl.leiden(adata, key_added="leiden")
         y = adata.obs['leiden'].values
 
-    # Remove invalid or unwanted labels (e.g., unknown, NA, or empty)
-    bad_labels = {'unknown', 'NA', 'None', ''}
-    y = np.array([label for label in y if label not in bad_labels])
-    X = X[:len(y)]  # Ensure that X and y are aligned
+    y = np.array(y)
 
-    # Encode labels to integers
+    # -------------------------
+    # ✅ FIX: correct masking
+    # -------------------------
+    bad_labels = {'unknown', 'NA', 'None', ''}
+    mask = np.array([label not in bad_labels for label in y])
+
+    X = X[mask]
+    y = y[mask]
+
+    # -------------------------
+    # Encode labels
+    # -------------------------
     _, y_encoded = np.unique(y, return_inverse=True)
 
-    # Return the feature matrix (X) and the encoded labels (y)
     print(f"Final dataset: {X.shape}, classes: {len(np.unique(y_encoded))}")
     return X, y_encoded
 
 
-def load_pbmc():
+def load_pbmc(seed=42):
+    sc.settings.seed = seed
 
     adata = sc.datasets.pbmc3k()
 
@@ -232,95 +209,49 @@ def load_pbmc():
     adata = adata[:, adata.var.highly_variable]
 
     sc.pp.scale(adata, max_value=10)
-    sc.tl.pca(adata, n_comps=50)
+    sc.tl.pca(adata, n_comps=50, svd_solver="arpack")
 
-    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50)
-
-    # 🔥 FIX
-    sc.tl.louvain(adata, resolution=1.0)
+    sc.pp.neighbors(adata, n_neighbors=15, n_pcs=50, random_state=seed)
+    sc.tl.louvain(adata, resolution=1.0, random_state=seed)
 
     X = adata.obsm["X_pca"]
     y = adata.obs["louvain"].astype(int).values
-
-    print("PBMC clusters:", len(np.unique(y)))  # debug
-
     return X, y
 
-def load_cifar10_embeddings(n_samples=5000):
-
-    # transform
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
-
-    dataset = torchvision.datasets.CIFAR10(
-        root="./data",
-        train=True,
-        download=True,
-        transform=transform
-    )
-
-    loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
-
-    # pretrained ResNet18
-    model = torchvision.models.resnet18(pretrained=True)
-    model.fc = nn.Identity()  # remove classifier
-    model.eval()
-
-    features = []
-    labels = []
-
-    with torch.no_grad():
-        for x, y in loader:
-            f = model(x)
-            features.append(f.numpy())
-            labels.append(y.numpy())
-
-    X = np.vstack(features)
-    y = np.concatenate(labels)
-
-    # subsample
-    idx = np.random.choice(len(X), n_samples, replace=False)
-    X = X[idx]
-    y = y[idx]
-
-    # normalize
-    X = StandardScaler().fit_transform(X)
-
-    if X.shape[1] > 50:
-        X = PCA(n_components=50).fit_transform(X)
-
-    return X, y
 def load_digits_data():
     X, y = load_digits(return_X_y=True)
     X = StandardScaler().fit_transform(X)
     return X, y
 
 
-def load_mnist(n_samples=5000):
+def load_mnist(n_samples=5000, seed=42):
     X, y = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False)
 
-    idx = np.random.choice(len(X), n_samples, replace=False)
+    rng = np.random.RandomState(seed)
+    idx = rng.choice(len(X), n_samples, replace=False)
+
     X = X[idx]
     y = y[idx]
 
     X = StandardScaler().fit_transform(X)
+
     return X, y
 
-
-def load_fashion_mnist(n_samples=5000):
+def load_fashion_mnist(n_samples=5000, seed=42):
     X, y = fetch_openml("Fashion-MNIST", version=1, return_X_y=True, as_frame=False)
 
-    idx = np.random.choice(len(X), n_samples, replace=False)
+    rng = np.random.RandomState(seed)
+    idx = rng.choice(len(X), n_samples, replace=False)
+
     X = X[idx]
     y = y[idx]
 
     X = StandardScaler().fit_transform(X)
+
     return X, y
 
 
-def load_rna(path="rna.csv", label_col=None, n_samples=5000):
+def load_rna(path="rna.csv", label_col=None, n_samples=5000, seed=42):
     import pandas as pd
 
     df = pd.read_csv(path)
@@ -332,119 +263,177 @@ def load_rna(path="rna.csv", label_col=None, n_samples=5000):
         y = np.zeros(len(df))
         X = df.values
 
-    idx = np.random.choice(len(X), min(n_samples, len(X)), replace=False)
+    rng = np.random.RandomState(seed)
+    idx = rng.choice(len(X), min(n_samples, len(X)), replace=False)
+
     X = X[idx]
     y = y[idx]
 
-    # 🔥 RNA preprocessing
     X = np.log1p(X)
     X = StandardScaler().fit_transform(X)
 
     if X.shape[1] > 50:
-        X = PCA(n_components=50).fit_transform(X)
+        X = PCA(n_components=50, random_state=seed, svd_solver="randomized").fit_transform(X)
 
     return X, y
 
 
-def run_pipeline(X, y, dataset_name, seeds, lambda_density=0.1):
-    output_dir = "output/comparison_seeds"
-    os.makedirs(output_dir, exist_ok=True)  # <-- create folder if needed
-    output_dir_images = "output/images_comparison"
+def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
+    output_dir = "output/comparison_seeds_best"
+    os.makedirs(output_dir, exist_ok=True)
+
+    output_dir_images = "output/images_comparison_best"
     os.makedirs(output_dir_images, exist_ok=True)
+
     for seed in seeds:
-        np.random.seed(seed)
+        set_global_seed(seed)
 
         print(f"\n========================")
         print(f"DATASET: {dataset_name} | SEED: {seed}")
         print(f"========================")
         print(f"Final dataset: {X.shape}, classes: {len(np.unique(y))}")
+        print(f"Trustworthiness threshold: {tw_threshold}")
 
         rho_high, knn_indices = compute_knn_density(X)
         P = compute_P(X)
 
-        Z_tsne, t_tsne = timed_run("t-SNE", run_tsne, X)
+        best_results = []
+        best_embeddings = []
+        best_titles = []
 
-        (Z_density, _), t_density = timed_run(
-            f"Density t-SNE (λ={lambda_density})",
-            run_density_tsne,
-            X, P, knn_indices, rho_high,
-            lambda_density=lambda_density
+
+        # t-SNE: tune perplexity
+        best_tsne, _ = tune_1d_method(
+            method_name="t-SNE",
+            X=X,
+            y=y,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold,
+            param_name="perplexity",
+            param_values=[5, 10, 20, 30, 50, 75, 100]
+        )
+        if best_tsne is not None:
+            best_results.append(best_tsne)
+            best_embeddings.append(best_tsne["Z"])
+            best_titles.append(f"t-SNE\nperp={best_tsne['param_value']}")
+
+        best_pacmap, _ = tune_1d_method(
+            method_name="PaCMAP",
+            X=X,
+            y=y,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold,
+            param_name="n_neighbors",
+            param_values=[5, 10, 15, 30, 50]
         )
 
-        Z_umap, t_umap = timed_run("UMAP", run_umap, X)
-        Z_densmap, t_densmap = timed_run("DensMAP", run_densmap, X)
+        if best_pacmap is not None:
+            best_results.append(best_pacmap)
+            best_embeddings.append(best_pacmap["Z"])
+            best_titles.append(f"PaCMAP\nk={best_pacmap['param_value']}")
+        # Density t-SNE: tune lambda_density
+        best_density, _ = tune_density_tsne(
+            X=X,
+            y=y,
+            P=P,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold
+        )
+        if best_density is not None:
+            best_results.append(best_density)
+            best_embeddings.append(best_density["Z"])
+            best_titles.append(f"Density t-SNE\nλ={best_density['param_value']}")
 
-        results = []
+        # UMAP: tune n_neighbors
+        best_umap, _ = tune_1d_method(
+            method_name="UMAP",
+            X=X,
+            y=y,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold,
+            param_name="n_neighbors",
+            param_values=[5, 10, 15, 30, 50, 100]
+        )
+        if best_umap is not None:
+            best_results.append(best_umap)
+            best_embeddings.append(best_umap["Z"])
+            best_titles.append(f"UMAP\nk={best_umap['param_value']}")
 
-        results.append(
-            compute_metrics_for_method(
-                "t-SNE", X, Z_tsne, knn_indices, rho_high, t_tsne
-            )
-        )
-        results.append(
-            compute_metrics_for_method(
-                "Density t-SNE", X, Z_density, knn_indices, rho_high, t_density
-            )
-        )
-        results.append(
-            compute_metrics_for_method(
-                "UMAP", X, Z_umap, knn_indices, rho_high, t_umap
-            )
-        )
-        results.append(
-            compute_metrics_for_method(
-                "DensMAP", X, Z_densmap, knn_indices, rho_high, t_densmap
-            )
-        )
 
-        save_results_to_csv(
+        # DensMAP: tune n_neighbors
+        best_densmap, _ = tune_1d_method(
+            method_name="DensMAP",
+            X=X,
+            y=y,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold,
+            param_name="dens_lambda",
+            param_values=[0.25, 0.5, 1.0, 2.0, 4.0, 8.0]
+        )
+        if best_densmap is not None:
+            best_results.append(best_densmap)
+            best_embeddings.append(best_densmap["Z"])
+            best_titles.append(f"DensMAP\nk={best_densmap['param_value']}")
+
+
+
+        # save csv
+        stripped_results = []
+        for r in best_results:
+            rr = dict(r)
+            rr.pop("Z", None)
+            stripped_results.append(rr)
+
+        save_best_results_to_csv(
             os.path.join(output_dir, f"{dataset_name}_seed_{seed}"),
-            results
+            stripped_results
         )
 
-        save_embeddings_image(
-            [Z_tsne, Z_density, Z_umap, Z_densmap],
-            ["t-SNE", "Density t-SNE", "UMAP", "DensMAP"],
-            y,
-            os.path.join(output_dir_images, f"{dataset_name}_seed_{seed}")
-        )
+        # save image
+        #if len(best_embeddings) > 0:
+        #    save_embeddings_image(
+        #        best_embeddings,
+        #        best_titles,
+        #        y,
+        #        os.path.join(output_dir_images, f"{dataset_name}_seed_{seed}")
+        #    )
+        # save embeddings for later plotting
+        if len(best_embeddings) > 0:
+            save_interim_results(
+                best_embeddings,
+                best_titles,
+                y,
+                best_results,
+                dataset_name,
+                seed
+            )
 
 def main():
 
-    np.random.seed(42)
+    seeds = [23,234,234345]
 
-
-
-    seeds = [23,234]
     X, y = load_tumor_melanoma()
-    run_pipeline(X, y, "tumor", seeds,lambda_density=0.002,)
-
-
+    run_pipeline_tuned(X, y, "tumor", seeds,          tw_threshold = 0.90)
     X, y, rho_true = load_spiral_density()
-    run_pipeline(X, y, "spiral_density",seeds, lambda_density=0.0005)
-
+    run_pipeline_tuned(X, y, "spiral_density",seeds,  tw_threshold = 0.99)
     X, y, rho_true = load_synthetic_density()
-
-    run_pipeline(X, y, "synthetic_density",seeds, lambda_density=0.002)
-
-
-    X, y = load_cifar10_embeddings()
-    run_pipeline(X, y, "cifar10",seeds, lambda_density=0.002)
-
-    X, y = load_mnist()
-    run_pipeline(X, y, "mnist",seeds, lambda_density=0.001)
-
-
+    run_pipeline_tuned(X, y, "mnist",seeds,           tw_threshold = 0.88)
     X, y = load_pbmc()
-    run_pipeline(X, y, "pbmc",seeds, lambda_density=0.002)
-
+    run_pipeline_tuned(X, y, "pbmc",seeds,            tw_threshold = 0.85)
     X, y = load_digits_data()
-    run_pipeline(X, y, "digits",seeds, lambda_density=0.003)
-
+    run_pipeline_tuned(X, y, "digits",seeds,          tw_threshold = 0.95)
     X, y = load_fashion_mnist()
-    run_pipeline(X, y, "fashion_mnist",seeds, lambda_density=0.002)
-
-
+    run_pipeline_tuned(X, y, "fashion_mnist",seeds,  tw_threshold = 0.95)
 
 if __name__ == "__main__":
     main()
