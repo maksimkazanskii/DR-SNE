@@ -2,7 +2,7 @@
 
 **DR-SNE** is a dimensionality reduction method that explicitly preserves **relative density structure** alongside local neighborhood relationships. It extends the stochastic neighbor embedding (SNE / t-SNE) framework by introducing a principled density alignment objective.
 
----
+--
 
 ## 📑 Table of Contents
 
@@ -27,7 +27,7 @@ DR-SNE addresses this limitation by reformulating dimensionality reduction as th
 
 This is achieved by augmenting the standard t-SNE objective with a **density regularization term**.
 
----
+--
 
 ## Key Idea
 
@@ -61,7 +61,7 @@ where:
 - Enhances downstream tasks such as **anomaly detection**
 - Compatible with standard t-SNE acceleration techniques (e.g., Barnes-Hut, FIt-SNE)
 
----
+--
 
 ## 📊 When to Use DR-SNE
 
@@ -79,7 +79,7 @@ Less critical for:
 - purely clustered data (e.g., MNIST classification visualization)
 - purely geometric manifold tasks
 
----
+--
 
 ##  Installation
 
@@ -165,6 +165,7 @@ src/
 ├── plot_comparison.py        # Final comparison figures
 ├── plot_ablation_results.py  # Trade-off visualization
 
+```
 # How to Run
 
 ## 1. Run DR-SNE on your data
