@@ -89,32 +89,12 @@ cd dr-sne
 pip install -r requirements.txt
 ```
 
-##  How to Run (API Usage)
 
-### 1. DR-SNE (main method)
-
-```python
-from DRSNE.drsne import drsne
-
-Z = drsne(
-  X,
-  n_components=2,
-  perplexity=50.0,
-  lambda_density=0.01,
-  k_density=50,
-  n_iter=1000,
-  warmup=50,
-  lr=2.0,
-  seed=42,
-  verbose=True
-)
-
-```
 
 ## ⚠️ Important
 
-**Current implementation has $\mathcal{O}(n^2)$ time complexity and does not include Barnes–Hut or other acceleration techniques.** It is therefore currently not optimized for large-scale datasets. For large $n$, consider subsampling or integrating existing accelerated t-SNE methods.
-**An optimized, scalable version is currently in development and will be released soon.**
+Current implementation has $\mathcal{O}(n^2)$ time complexity and does not include Barnes–Hut or other acceleration techniques. It is therefore currently not optimized for large-scale datasets. For large $n$, consider subsampling or integrating existing accelerated t-SNE methods.
+An optimized, scalable version is currently in development and will be released soon.
 ---
 ## Structure
 
