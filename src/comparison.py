@@ -14,7 +14,62 @@ import trimap
 
 from density_tsne import run_density_tsne
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from DRSNE.drsne import drsne
+def run_drsne(
+        X,
+        seed=42,
+        lambda_density=0.01,
+        k_density=300
+):
+    Z = drsne(
+        X,
+        n_components=2,
+        lambda_density=lambda_density,
+        k_density=k_density,
+        seed=seed,
+        verbose=False
+    )
+    return Z
+
+import sys
+sys.path.append("/Users/maksimkazanskii2/Desktop/tsne/densvis/densne")
+
+import densne
+
+def run_densne(
+        X,
+        seed=42,
+        perplexity=30,
+        dens_lambda=0.01,
+        theta=0.5,
+        dens_frac=0.5,
+        max_iter=800
+):
+    rng = np.random.RandomState(seed)
+
+    init_emb = 1e-4 * rng.normal(size=(X.shape[0], 2)).astype(np.float64)
+
+    Z = densne.run_densne(
+        np.asarray(X, dtype=np.float64),
+        no_dims=2,
+        perplexity=float(perplexity),
+        theta=float(theta),
+        randseed=int(seed),
+        verbose=False,
+        initial_dims=None,
+        use_pca=False,
+        max_iter=int(max_iter),
+        dens_frac=float(dens_frac),
+        dens_lambda=float(dens_lambda),
+        final_dens=False,
+        initial_emb=init_emb
+    )
+
+    return Z
 def clean_labels(X, y):
     import numpy as np
 
@@ -228,7 +283,15 @@ def tune_1d_method(
                 seed,
                 dens_lambda=param_value   # 🔥 SAFE
             )
-
+        elif method_name == "DenSNE":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_densne,
+                X,
+                seed,
+                perplexity=30,              # fixed (or tune later)
+                dens_lambda=param_value     # 🔥 tuning this
+            )
         else:
             raise ValueError(f"Unsupported method: {method_name}")
 

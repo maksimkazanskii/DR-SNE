@@ -26,7 +26,15 @@ def run_density_tsne(
 
     optimizer = torch.optim.Adam([Z], lr=lr)
 
-    rho_high_t = torch.tensor(rho_high, dtype=torch.float32)
+    if isinstance(rho_high, torch.Tensor):
+        rho_high_t = rho_high.detach().clone().float()
+    else:
+        rho_high_t = torch.tensor(rho_high, dtype=torch.float32)
+
+    if isinstance(knn_indices, torch.Tensor):
+        knn_indices_t = knn_indices.detach().clone().long()
+    else:
+        knn_indices_t = torch.tensor(knn_indices, dtype=torch.long)
     log_rho_high = torch.log(rho_high_t + 1e-8)
 
     knn_indices_t = torch.tensor(knn_indices, dtype=torch.long)

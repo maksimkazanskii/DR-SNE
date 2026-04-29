@@ -1,0 +1,160 @@
+[
+    {
+        "method": "HIGH-D",
+        "dim": 2,
+        "param": null,
+        "auroc": 0.8783759999999999,
+        "auprc": 0.914198732905552,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "PCA",
+        "dim": 2,
+        "param": null,
+        "auroc": 0.918132,
+        "auprc": 0.9467731488944415,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "t-SNE",
+        "dim": 2,
+        "param": {
+            "perplexity": 10,
+            "lr": 100
+        },
+        "auroc": 0.5645199999999999,
+        "auprc": 0.5987490619258853,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "UMAP",
+        "dim": 2,
+        "param": {
+            "n_neighbors": 80,
+            "min_dist": 0.25
+        },
+        "auroc": 0.69292,
+        "auprc": 0.7322916886879185,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "UMAP-proj",
+        "dim": 2,
+        "param": {
+            "n_neighbors": 30,
+            "min_dist": 0.0
+        },
+        "auroc": 0.578608,
+        "auprc": 0.6026332183833831,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "DensMAP",
+        "dim": 2,
+        "param": {
+            "dens_lambda": 4.0,
+            "dens_frac": 0.5
+        },
+        "auroc": 0.533896,
+        "auprc": 0.5367259368391952,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "Density t-SNE",
+        "dim": 2,
+        "param": {
+            "lam": 0.001,
+            "k_density": 30,
+            "perplexity": 30
+        },
+        "auroc": 0.570812,
+        "auprc": 0.610197825463076,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "HIGH-D",
+        "dim": 10,
+        "param": null,
+        "auroc": 0.8783759999999999,
+        "auprc": 0.914198732905552,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "PCA",
+        "dim": 10,
+        "param": null,
+        "auroc": 0.893896,
+        "auprc": 0.9249876569291309,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "t-SNE",
+        "dim": 10,
+        "param": {
+            "perplexity": 10,
+            "lr": 100
+        },
+        "auroc": 0.585984,
+        "auprc": 0.6439691585409737,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "UMAP",
+        "dim": 10,
+        "param": {
+            "n_neighbors": 80,
+            "min_dist": 1.0
+        },
+        "auroc": 0.670464,
+        "auprc": 0.7156973737695517,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "UMAP-proj",
+        "dim": 10,
+        "param": {
+            "n_neighbors": 5,
+            "min_dist": 1.0
+        },
+        "auroc": 0.57246,
+        "auprc": 0.6309046387970029,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "DensMAP",
+        "dim": 10,
+        "param": {
+            "dens_lambda": 0.1,
+            "dens_frac": 0.5
+        },
+        "auroc": 0.5866319999999999,
+        "auprc": 0.6056764993669193,
+        "seed": 0,
+        "dataset": "synthetic"
+    },
+    {
+        "method": "Density t-SNE",
+        "dim": 10,
+        "param": {
+            "lam": 0.001,
+            "k_density": 30,
+            "perplexity": 30
+        },
+        "auroc": 0.570444,
+        "auprc": 0.6098726292579777,
+        "seed": 0,
+        "dataset": "synthetic"
+    }
+]

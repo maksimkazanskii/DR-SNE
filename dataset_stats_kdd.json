@@ -1,0 +1,21 @@
+{
+    "train": {
+        "size": 5000,
+        "anomalies": 0,
+        "normal": 5000,
+        "anomaly_ratio": 0.0
+    },
+    "val": {
+        "size": 2000,
+        "anomalies": 1000,
+        "normal": 1000,
+        "anomaly_ratio": 0.5
+    },
+    "test": {
+        "size": 2000,
+        "anomalies": 1000,
+        "normal": 1000,
+        "anomaly_ratio": 0.5
+    },
+    "dimensionality": 64
+}

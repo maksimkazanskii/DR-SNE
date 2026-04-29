@@ -1,0 +1,160 @@
+[
+    {
+        "method": "HIGH-D",
+        "dim": 2,
+        "param": null,
+        "auroc": 0.9122340425531914,
+        "auprc": 0.959949019035067,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "PCA",
+        "dim": 2,
+        "param": null,
+        "auroc": 0.7304964539007093,
+        "auprc": 0.8512684632311559,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "Density t-SNE",
+        "dim": 2,
+        "param": {
+            "lam": 0.001,
+            "k_density": 30,
+            "perplexity": 30
+        },
+        "auroc": 0.5498670212765958,
+        "auprc": 0.7271621747250344,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "t-SNE",
+        "dim": 2,
+        "param": {
+            "perplexity": 40,
+            "lr": 50
+        },
+        "auroc": 0.5547429078014184,
+        "auprc": 0.7127656567214646,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "UMAP",
+        "dim": 2,
+        "param": {
+            "n_neighbors": 15,
+            "min_dist": 0.1
+        },
+        "auroc": 0.47140957446808507,
+        "auprc": 0.6523500247710037,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "UMAP-proj",
+        "dim": 2,
+        "param": {
+            "n_neighbors": 15,
+            "min_dist": 0.1
+        },
+        "auroc": 0.5234929078014184,
+        "auprc": 0.707845758338947,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "DensMAP",
+        "dim": 2,
+        "param": {
+            "dens_lambda": 2.0,
+            "dens_frac": 0.5
+        },
+        "auroc": 0.6343085106382979,
+        "auprc": 0.7801422555865232,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "HIGH-D",
+        "dim": 10,
+        "param": null,
+        "auroc": 0.9122340425531914,
+        "auprc": 0.959949019035067,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "PCA",
+        "dim": 10,
+        "param": null,
+        "auroc": 0.8105053191489363,
+        "auprc": 0.9121425372151867,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "Density t-SNE",
+        "dim": 10,
+        "param": {
+            "lam": 0.001,
+            "k_density": 30,
+            "perplexity": 30
+        },
+        "auroc": 0.5498670212765958,
+        "auprc": 0.7271621747250344,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "t-SNE",
+        "dim": 10,
+        "param": {
+            "perplexity": 30,
+            "lr": 300
+        },
+        "auroc": 0.6792996453900709,
+        "auprc": 0.7935803374622394,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "UMAP",
+        "dim": 10,
+        "param": {
+            "n_neighbors": 5,
+            "min_dist": 0.1
+        },
+        "auroc": 0.5436613475177305,
+        "auprc": 0.73533988992489,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "UMAP-proj",
+        "dim": 10,
+        "param": {
+            "n_neighbors": 30,
+            "min_dist": 0.25
+        },
+        "auroc": 0.47828014184397166,
+        "auprc": 0.6342586988304164,
+        "seed": 0,
+        "dataset": "moons"
+    },
+    {
+        "method": "DensMAP",
+        "dim": 10,
+        "param": {
+            "dens_lambda": 4.0,
+            "dens_frac": 0.025
+        },
+        "auroc": 0.6185726950354611,
+        "auprc": 0.7842040340896421,
+        "seed": 0,
+        "dataset": "moons"
+    }
+]

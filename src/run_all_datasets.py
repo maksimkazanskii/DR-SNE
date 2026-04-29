@@ -302,6 +302,38 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
         best_titles = []
 
 
+        best_density, _ = tune_density_tsne(
+            X=X,
+            y=y,
+            P=P,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold
+        )
+        if best_density is not None:
+            best_results.append(best_density)
+            best_embeddings.append(best_density["Z"])
+            best_titles.append(f"DR-SNE\nλ={best_density['param_value']}")
+
+
+        best_densne, _ = tune_1d_method(
+                method_name="DenSNE",
+                X=X,
+                y=y,
+                knn_indices=knn_indices,
+                rho_high=rho_high,
+                seed=seed,
+                tw_threshold=tw_threshold,
+                param_name="dens_lambda",
+                param_values=[0.0005, 0.001, 0.002, 0.004, 0.008, 0.016]
+            )
+
+        if best_densne is not None:
+            best_results.append(best_densne)
+            best_embeddings.append(best_densne["Z"])
+            best_titles.append(f"DenSNE\nλ={best_densne['param_value']}")
+
         # t-SNE: tune perplexity
         best_tsne, _ = tune_1d_method(
             method_name="t-SNE",
@@ -335,20 +367,9 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             best_results.append(best_pacmap)
             best_embeddings.append(best_pacmap["Z"])
             best_titles.append(f"PaCMAP\nk={best_pacmap['param_value']}")
-        # Density t-SNE: tune lambda_density
-        best_density, _ = tune_density_tsne(
-            X=X,
-            y=y,
-            P=P,
-            knn_indices=knn_indices,
-            rho_high=rho_high,
-            seed=seed,
-            tw_threshold=tw_threshold
-        )
-        if best_density is not None:
-            best_results.append(best_density)
-            best_embeddings.append(best_density["Z"])
-            best_titles.append(f"Density t-SNE\nλ={best_density['param_value']}")
+        # DR-SNE
+        #
+        # : tune lambda_density
 
         # UMAP: tune n_neighbors
         best_umap, _ = tune_1d_method(
@@ -384,7 +405,6 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             best_results.append(best_densmap)
             best_embeddings.append(best_densmap["Z"])
             best_titles.append(f"DensMAP\nk={best_densmap['param_value']}")
-
 
 
         # save csv

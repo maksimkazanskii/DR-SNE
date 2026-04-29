@@ -8,28 +8,24 @@ OUT_DIR = "output/final_figures"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 # -------------------------------------------------
-# FIXED METHOD ORDER
+# FIXED METHOD ORDER (DISPLAY NAMES)
 # -------------------------------------------------
-METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "Density t-SNE"]
+METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "DenSNE", "DRSNE"]
+
+# map file names → display names
+METHOD_ALIASES = {
+    "Density t-SNE": "DRSNE"
+}
 
 # -------------------------------------------------
 # COLORS (same as your style)
 # -------------------------------------------------
 colors = [
-    # blues
     "#1f77b4", "#4fa3d1", "#a6cee3",
-
-    # oranges
     "#d95f02", "#e6550d", "#fd8d3c",
     "#fdae6b",
-
-    # light reds
     "#fcbba1", "#fee0d2",
-
-    # muted / soft tones
     "#fdd49e", "#f6b26b",
-
-    # muted blues (replace browns)
     "#1f4e79",
     "#4c7fa1",
     "#9fbfd9",
@@ -41,10 +37,9 @@ cmap = ListedColormap(colors)
 
 
 # -------------------------------------------------
-# LOAD DATA (FIXED)
+# LOAD DATA
 # -------------------------------------------------
 def load_embeddings(dataset):
-    # ✅ FIX: exact dataset match instead of substring
     files = [f for f in os.listdir(INPUT_DIR) if f.startswith(dataset + "_")]
 
     data_dict = {}
@@ -55,13 +50,15 @@ def load_embeddings(dataset):
 
         method = str(d["method"])
 
+        # 🔥 map to display name
+        method = METHOD_ALIASES.get(method, method)
+
         if method not in METHODS:
             continue
 
         Z = d["Z"]
         y = d["y"]
 
-        # label fix
         if y.dtype.type is np.str_ or y.dtype == object:
             _, y = np.unique(y, return_inverse=True)
 
@@ -112,17 +109,11 @@ def plot_grid(datasets, filename):
             y = data["y"]
             rho = data["rho"]
 
-            # -----------------------------------
-            # density sorting (unchanged)
-            # -----------------------------------
             if rho is not None:
                 order = np.argsort(rho)
                 Z = Z[order]
                 y = y[order]
 
-            # -----------------------------------
-            # spiral styling (unchanged)
-            # -----------------------------------
             if "spiral" in dataset:
                 s_val = 2
                 alpha_val = 0.6
@@ -147,11 +138,9 @@ def plot_grid(datasets, filename):
                 spine.set_linewidth(0.6)
                 spine.set_edgecolor("0.85")
 
-            # row labels
             if col == 0:
                 ax.set_ylabel(method, fontsize=10)
 
-            # column titles
             if row == 0:
                 ax.set_title(dataset, fontsize=12)
 
@@ -169,13 +158,11 @@ def plot_grid(datasets, filename):
 # -------------------------------------------------
 if __name__ == "__main__":
 
-    # FIGURE 1 (real-world + biology)
     plot_grid(
         datasets=["pbmc", "fashion_mnist", "tumor"],
         filename="comparison_main.png"
     )
 
-    # FIGURE 2 (benchmarks + synthetic)
     plot_grid(
         datasets=["digits", "mnist", "spiral_density"],
         filename="comparison_app.png"
