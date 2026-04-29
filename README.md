@@ -4,6 +4,18 @@
 
 ---
 
+## 📑 Table of Contents
+
+- [Overview](#overview)
+- [Key Idea](#key-idea)
+- [Features](#-features)
+- [When to Use](#-when-to-use-dr-sne)
+- [Installation](#installation)
+- [How to Run](#how-to-run-api-usage)
+- [Important Notes](#-important)
+- [Source Code Structure](#-source-code-structure-src)
+- [Experiments](#how-to-run-experiments-reproducibility)
+
 ## Overview
 
 Dimensionality reduction methods such as t-SNE focus on preserving **local geometry**, but often distort the **distribution of probability mass**, leading to misleading embeddings.
