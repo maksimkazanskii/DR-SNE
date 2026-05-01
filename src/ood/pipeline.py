@@ -31,7 +31,7 @@ import sys
 import numpy as np
 
 import sys
-sys.path.append("/Users/maksimkazanskii2/Desktop/tsne/densvis/densne")
+sys.path.append("/tsne/densvis/densne")
 
 import densne
 
@@ -262,14 +262,25 @@ def embed_trimap_2d(X, dim, seed, n_inliers, n_outliers):
 
 
 def embed_drsne_2d(X, dim, seed, lambda_density, k_density):
-    return drsne(
-        X,
-        n_components=2,
+    if dim != 2:
+        raise ValueError("DR-SNE currently supports dim=2")
+
+    P = compute_P(X, perplexity=30.0)
+    rho_high, knn_indices = compute_knn_density(X, k=k_density)
+    Z, history = drsne(
+        X=X,
+        P=P,
+        knn_indices=knn_indices,
+        rho_high=rho_high,
+        n_iter=600,
+        warmup=50,
+        lr=2.0,
         lambda_density=lambda_density,
-        k_density=k_density,
         seed=seed,
         verbose=False
     )
+
+    return Z
 
 def embed_drsne(X, dim, seed, lambda_density=0.0):
     if dim != 2:
@@ -477,13 +488,10 @@ def run_experiment_2d(X, y, dataset_name, dim=2, seeds=[0]):
     # GENERIC 2D SWEEP
     # =====================================================
     def run_grid(method, embed_fn, grid1, grid2, name1, name2):
-
         for seed in seeds:
             for p1 in grid1:
                 for p2 in grid2:
-
                     Z = embed_fn(X, dim, seed, p1, p2)
-
                     res = evaluate(
                         Z, method, seed,
                         p1_name=name1, p1_val=p1,
@@ -513,7 +521,6 @@ def run_experiment_2d(X, y, dataset_name, dim=2, seeds=[0]):
 
     run_grid("PaCMAP", embed_pacmap_2d, PACMAP_NN, PACMAP_FP, "n_neighbors", "FP_ratio")
 
-    run_grid("TriMap", embed_trimap_2d, TRIMAP_IN, TRIMAP_OUT, "n_inliers", "n_outliers")
 
 
     # =====================================================
@@ -549,7 +556,6 @@ if __name__ == "__main__":
         "swiss": load_swiss_density,
         "fashion": load_fashion_anomaly,
         "synthetic": load_spiral,
-
     }
 
     # =========================================================

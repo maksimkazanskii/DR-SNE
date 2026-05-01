@@ -3,12 +3,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-BASE = "/Users/maksimkazanskii2/Desktop/tsne/results"
+BASE = "results"
 
 DATASETS = [
     ("thyroid", "Thyroid"),
     ("shuttle", "Shuttle"),
     ("pbmc", "PBMC"),
+    ("cifar", "CIFAR"),
+    ("synthetic", "Synthetic (Spiral)"),
+    ("fashion", "Fashion MNIST"),
+
 ]
 
 DETECTORS = {
@@ -27,7 +31,9 @@ COLORS = {
 
 K_MODE = "best_k"  # or "mean_k"
 
-fig, axes = plt.subplots(1, 3, figsize=(14, 3.8), sharey=False)
+# 🔥 changed here
+fig, axes = plt.subplots(2, 3, figsize=(14, 7.6), sharey=False)
+axes = axes.flatten()
 
 for ax, (dataset, title) in zip(axes, DATASETS):
     path = os.path.join(BASE, f"{dataset}_2d.csv")

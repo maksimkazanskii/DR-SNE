@@ -23,20 +23,25 @@ def run_drsne(
         X,
         seed=42,
         lambda_density=0.01,
-        k_density=300
+        k_density=30,
+        knn_indices=None,
+        rho_high=None,
+        P=None
 ):
-    Z = drsne(
+    Z, _ = drsne(
         X,
-        n_components=2,
+        P=P,
+        knn_indices=knn_indices,
+        rho_high=rho_high,
         lambda_density=lambda_density,
-        k_density=k_density,
         seed=seed,
         verbose=False
     )
+
     return Z
 
 import sys
-sys.path.append("/Users/maksimkazanskii2/Desktop/tsne/densvis/densne")
+sys.path.append("densvis/densne")
 
 import densne
 
@@ -47,27 +52,33 @@ def run_densne(
         dens_lambda=0.01,
         theta=0.5,
         dens_frac=0.5,
-        max_iter=800
+        max_iter=800,
+        dim=2,
+        initial_dims=None
 ):
     rng = np.random.RandomState(seed)
 
-    init_emb = 1e-4 * rng.normal(size=(X.shape[0], 2)).astype(np.float64)
+    init_emb = 1e-4 * rng.normal(size=(X.shape[0], dim)).astype(np.float64)
 
     Z = densne.run_densne(
         np.asarray(X, dtype=np.float64),
-        no_dims=2,
+        no_dims=dim,
         perplexity=float(perplexity),
         theta=float(theta),
         randseed=int(seed),
         verbose=False,
-        initial_dims=None,
+        initial_dims=initial_dims,
         use_pca=False,
         max_iter=int(max_iter),
         dens_frac=float(dens_frac),
         dens_lambda=float(dens_lambda),
-        final_dens=False,
+        final_dens=True,  # ← you enabled this
         initial_emb=init_emb
     )
+
+    # 🔥 CRITICAL FIX
+    if isinstance(Z, tuple):
+        Z = Z[0]
 
     return Z
 def clean_labels(X, y):
@@ -231,7 +242,8 @@ def tune_1d_method(
         seed,
         tw_threshold,
         param_name,
-        param_values
+        param_values,
+        P=None
 ):
     candidates = []
 
@@ -267,6 +279,18 @@ def tune_1d_method(
                 n_neighbors=param_value
             )
 
+        elif method_name == "DR-SNE":
+            Z, runtime = timed_run(
+                f"{method_name} ({param_name}={param_value})",
+                run_drsne,
+                X,
+                seed,
+                lambda_density=param_value,
+                k_density=30,
+                knn_indices=knn_indices,
+                rho_high=rho_high,
+                P=P
+            )
         elif method_name == "TriMAP":
             Z, runtime = timed_run(
                 f"{method_name} ({param_name}={param_value})",
@@ -289,8 +313,13 @@ def tune_1d_method(
                 run_densne,
                 X,
                 seed,
-                perplexity=30,              # fixed (or tune later)
-                dens_lambda=param_value     # 🔥 tuning this
+                perplexity=30,           # 🔒 geometry fixed
+                dens_lambda=param_value, # 🔥 tuning
+                theta=0.5,
+                dens_frac=0.5,
+                max_iter=800,
+                dim=2,
+                initial_dims=None
             )
         else:
             raise ValueError(f"Unsupported method: {method_name}")

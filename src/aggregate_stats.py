@@ -3,13 +3,11 @@ import glob
 import pandas as pd
 import numpy as np
 
-INPUT_DIR = "/output/comparison_seeds_best_legacy2"
+INPUT_DIR = "/output/comparison_seeds_best_legacy4"
 
-METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "Density t-SNE"]
+METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "Density t-SNE", "DENSNE"]
 
-# -------------------------------------------------
-# Helper: extract dataset name
-# -------------------------------------------------
+
 def get_dataset_name(filename):
     base = os.path.basename(filename)
     return base.split("_seed_")[0]

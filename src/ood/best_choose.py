@@ -40,7 +40,7 @@ def clean_std(row, std_col):
 
 
 # =========================================================
-# OLD BEHAVIOR (PER-METRIC BEST)
+# FIXED: deterministic selection
 # =========================================================
 
 def choose_best_row(df_method, metric):
@@ -49,13 +49,13 @@ def choose_best_row(df_method, metric):
     if mean_col not in df_method.columns:
         return None
 
-    best_idx = df_method[mean_col].idxmax()
-    return df_method.loc[best_idx]
+    df_sorted = df_method.sort_values(
+        by=[mean_col, "param1_value", "param2_value"],
+        ascending=[False, True, True]
+    )
 
+    return df_sorted.iloc[0]
 
-# =========================================================
-# NEW FAIR SELECTION (AUPRC_IF ONLY)
-# =========================================================
 
 def choose_fair_row(df_method):
     mean_col = "AUPRC_IF_mean"
@@ -63,8 +63,12 @@ def choose_fair_row(df_method):
     if mean_col not in df_method.columns:
         return None
 
-    best_idx = df_method[mean_col].idxmax()
-    return df_method.loc[best_idx]
+    df_sorted = df_method.sort_values(
+        by=[mean_col, "param1_value", "param2_value"],
+        ascending=[False, True, True]
+    )
+
+    return df_sorted.iloc[0]
 
 
 # =========================================================
@@ -109,7 +113,7 @@ def process_file(filepath):
             best_rows.append(best_out)
 
             # =========================
-            # FAIR TABLE (NeurIPS)
+            # FAIR TABLE
             # =========================
             fair = choose_fair_row(df_method)
 
@@ -136,7 +140,7 @@ def process_file(filepath):
             fair_rows.append(fair_out)
 
         # =========================
-        # SAVE BOTH TABLES
+        # SAVE
         # =========================
 
         best_df = pd.DataFrame(best_rows)

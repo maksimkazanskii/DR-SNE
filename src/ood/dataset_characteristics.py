@@ -18,11 +18,11 @@ from datasets import (
 # =========================================================
 
 DATASETS = {
+    "cifar": load_resnet_cifar10,
     "thyroid": load_tumor,
     "pbmc": load_pbmc,
     "shuttle": load_shuttle,
     "fashion_dino": load_fashion_dino,
-    "cifar": load_resnet_cifar10,
     "swiss": load_swiss_density,
     "fashion": load_fashion_anomaly,
     "synthetic": load_spiral,

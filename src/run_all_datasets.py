@@ -302,32 +302,34 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
         best_titles = []
 
 
-        best_density, _ = tune_density_tsne(
+        best_drsne, _ = tune_1d_method(
+            method_name="DR-SNE",
             X=X,
             y=y,
-            P=P,
             knn_indices=knn_indices,
             rho_high=rho_high,
             seed=seed,
-            tw_threshold=tw_threshold
+            tw_threshold=tw_threshold,
+            param_name="lambda_density",
+            param_values=[0.0001, 0.001, 0.01, 0.1, 1.0, 10.0],
+            P=P
         )
-        if best_density is not None:
-            best_results.append(best_density)
-            best_embeddings.append(best_density["Z"])
-            best_titles.append(f"DR-SNE\nλ={best_density['param_value']}")
 
-
+        if best_drsne is not None:
+            best_results.append(best_drsne)
+            best_embeddings.append(best_drsne["Z"])
+            best_titles.append(f"DR-SNE\nλ={best_drsne['param_value']}")
         best_densne, _ = tune_1d_method(
-                method_name="DenSNE",
-                X=X,
-                y=y,
-                knn_indices=knn_indices,
-                rho_high=rho_high,
-                seed=seed,
-                tw_threshold=tw_threshold,
-                param_name="dens_lambda",
-                param_values=[0.0005, 0.001, 0.002, 0.004, 0.008, 0.016]
-            )
+            method_name="DenSNE",
+            X=X,
+            y=y,
+            knn_indices=knn_indices,
+            rho_high=rho_high,
+            seed=seed,
+            tw_threshold=tw_threshold,
+            param_name="dens_lambda",
+            param_values=[0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0]
+        )
 
         if best_densne is not None:
             best_results.append(best_densne)
@@ -439,9 +441,7 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             )
 
 def main():
-
-    seeds = [23,234,234345]
-
+    seeds = [0,1,2,3,4]
     X, y = load_tumor_melanoma()
     run_pipeline_tuned(X, y, "tumor", seeds,          tw_threshold = 0.90)
     X, y, rho_true = load_spiral_density()
@@ -457,3 +457,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
