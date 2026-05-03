@@ -197,15 +197,8 @@ Z = drsne(
 python src/run_all_datasets.py
 ```
 
-This runs DR-SNE and baseline methods across multiple datasets.
+This runs DR-SNE and baseline methods across multiple datasets for density-correlation and other metrics.
 
-### 3. Run comparison experiments
-
-```bash
-python src/comparison.py
-```
-
-This runs method comparisons and computes metrics such as trustworthiness, density correlation, stress, and runtime.
 
 ### 4. Run ablation studies
 

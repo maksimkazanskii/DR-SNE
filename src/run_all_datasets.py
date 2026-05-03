@@ -218,6 +218,94 @@ def load_pbmc(seed=42):
     y = adata.obs["louvain"].astype(int).values
     return X, y
 
+def load_shuttle(seed=42, n_samples=5000):
+    import numpy as np
+    from sklearn.datasets import fetch_openml
+    from sklearn.preprocessing import StandardScaler
+
+    rng = np.random.RandomState(seed)
+
+    # -------------------------
+    # LOAD
+    # -------------------------
+    X, y = fetch_openml(
+        "shuttle",
+        version=1,
+        return_X_y=True,
+        as_frame=False
+    )
+
+    # OpenML returns strings sometimes → enforce int
+    y = y.astype(int)
+
+    # -------------------------
+    # DEFINE LABELS
+    # -------------------------
+    # Binary anomaly version (for your pipeline consistency)
+    # class 1 = normal, others = anomaly
+    y_bin = (y != 1).astype(np.int64)
+
+    # -------------------------
+    # SUBSAMPLE (STRATIFIED)
+    # -------------------------
+    if n_samples is not None and n_samples < len(X):
+
+        classes, counts = np.unique(y, return_counts=True)
+        proportions = counts / counts.sum()
+
+        # allocate samples per class
+        target_counts = np.floor(proportions * n_samples).astype(int)
+
+        # fix rounding error
+        remainder = n_samples - target_counts.sum()
+        if remainder > 0:
+            frac = proportions * n_samples - target_counts
+            order = np.argsort(-frac)
+            for i in order[:remainder]:
+                target_counts[i] += 1
+
+        selected_idx = []
+
+        for cls, n_take in zip(classes, target_counts):
+            cls_idx = np.where(y == cls)[0]
+            n_take = min(n_take, len(cls_idx))
+
+            if n_take > 0:
+                chosen = rng.choice(cls_idx, size=n_take, replace=False)
+                selected_idx.append(chosen)
+
+        selected_idx = np.concatenate(selected_idx)
+        rng.shuffle(selected_idx)
+
+        X = X[selected_idx]
+        y_bin = y_bin[selected_idx]
+
+    # -------------------------
+    # SCALE
+    # -------------------------
+    X = StandardScaler().fit_transform(X)
+
+    # -------------------------
+    # OPTIONAL PCA (keep consistent with others)
+    # -------------------------
+    if X.shape[1] > 50:
+        from sklearn.decomposition import PCA
+        X = PCA(
+            n_components=50,
+            random_state=seed,
+            svd_solver="randomized"
+        ).fit_transform(X)
+
+    # -------------------------
+    # INFO
+    # -------------------------
+    print("Shuttle dataset")
+    print("Shape:", X.shape)
+    print("Classes (binary):", np.unique(y_bin))
+    print("Anomaly ratio:", y_bin.mean())
+
+    return X.astype(np.float32), y_bin
+
 def load_digits_data():
     X, y = load_digits(return_X_y=True)
     X = StandardScaler().fit_transform(X)
@@ -311,7 +399,7 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             seed=seed,
             tw_threshold=tw_threshold,
             param_name="lambda_density",
-            param_values=[0.0001, 0.001, 0.01, 0.1, 1.0, 10.0],
+            param_values=[0.0001,0.00025,0.0005,0.001, 0.0025, 0.005, 0.01, 0.025, 0.05,0.1],
             P=P
         )
 
@@ -328,7 +416,7 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             seed=seed,
             tw_threshold=tw_threshold,
             param_name="dens_lambda",
-            param_values=[0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0]
+            param_values=[0.001, 0.0025, 0.005, 0.01,0.025,  0.05, 0.1,0.25, 0.5, 1.0]
         )
 
         if best_densne is not None:
@@ -346,7 +434,7 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             seed=seed,
             tw_threshold=tw_threshold,
             param_name="perplexity",
-            param_values=[5, 10, 20, 30, 50, 75, 100]
+            param_values=[3, 5, 10, 20, 30,40, 50, 75, 100,150]
         )
         if best_tsne is not None:
             best_results.append(best_tsne)
@@ -362,8 +450,9 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             seed=seed,
             tw_threshold=tw_threshold,
             param_name="n_neighbors",
-            param_values=[5, 10, 15, 30, 50]
+            param_values=[3, 5, 10, 20,30,40, 50,75,100,150]
         )
+
 
         if best_pacmap is not None:
             best_results.append(best_pacmap)
@@ -383,7 +472,7 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             seed=seed,
             tw_threshold=tw_threshold,
             param_name="n_neighbors",
-            param_values=[5, 10, 15, 30, 50, 100]
+            param_values=[3, 5, 10, 20, 30,40,  50,75, 100,150]
         )
         if best_umap is not None:
             best_results.append(best_umap)
@@ -401,7 +490,7 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
             seed=seed,
             tw_threshold=tw_threshold,
             param_name="dens_lambda",
-            param_values=[0.25, 0.5, 1.0, 2.0, 4.0, 8.0]
+            param_values=[0.01,0.025,0.05,0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
         )
         if best_densmap is not None:
             best_results.append(best_densmap)
@@ -442,6 +531,11 @@ def run_pipeline_tuned(X, y, dataset_name, seeds, tw_threshold):
 
 def main():
     seeds = [0,1,2,3,4]
+    X, y = load_shuttle()
+    run_pipeline_tuned(X, y, "shuttle", seeds, tw_threshold=0.99)
+    """
+    X, y = load_fashion_mnist()
+    run_pipeline_tuned(X, y, "fashion_mnist",seeds,  tw_threshold = 0.95)
     X, y = load_tumor_melanoma()
     run_pipeline_tuned(X, y, "tumor", seeds,          tw_threshold = 0.90)
     X, y, rho_true = load_spiral_density()
@@ -452,9 +546,7 @@ def main():
     run_pipeline_tuned(X, y, "pbmc",seeds,            tw_threshold = 0.85)
     X, y = load_digits_data()
     run_pipeline_tuned(X, y, "digits",seeds,          tw_threshold = 0.95)
-    X, y = load_fashion_mnist()
-    run_pipeline_tuned(X, y, "fashion_mnist",seeds,  tw_threshold = 0.95)
-
+    """
 if __name__ == "__main__":
     main()
 

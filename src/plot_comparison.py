@@ -1,4 +1,5 @@
 import os
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -10,15 +11,10 @@ os.makedirs(OUT_DIR, exist_ok=True)
 # -------------------------------------------------
 # FIXED METHOD ORDER (DISPLAY NAMES)
 # -------------------------------------------------
-METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "DenSNE", "DRSNE"]
-
-# map file names → display names
-METHOD_ALIASES = {
-    "Density t-SNE": "DRSNE"
-}
+METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "DenSNE", "DR-SNE"]
 
 # -------------------------------------------------
-# COLORS (same as your style)
+# COLORS
 # -------------------------------------------------
 colors = [
     "#1f77b4", "#4fa3d1", "#a6cee3",
@@ -37,24 +33,21 @@ cmap = ListedColormap(colors)
 
 
 # -------------------------------------------------
-# LOAD DATA
+# LOAD DATA WITH PRIORITY LOGIC
 # -------------------------------------------------
 def load_embeddings(dataset):
     files = [f for f in os.listdir(INPUT_DIR) if f.startswith(dataset + "_")]
 
-    data_dict = {}
+    raw_data = {}
 
+    # -----------------------
+    # LOAD ALL METHODS FIRST
+    # -----------------------
     for f in files:
         path = os.path.join(INPUT_DIR, f)
         d = np.load(path, allow_pickle=True)
 
         method = str(d["method"])
-
-        # 🔥 map to display name
-        method = METHOD_ALIASES.get(method, method)
-
-        if method not in METHODS:
-            continue
 
         Z = d["Z"]
         y = d["y"]
@@ -64,11 +57,38 @@ def load_embeddings(dataset):
 
         rho = d["rho_high"] if "rho_high" in d else None
 
-        data_dict[method] = {
+        raw_data[method] = {
             "Z": Z,
             "y": y.astype(int),
             "rho": rho
         }
+
+    # -----------------------
+    # RESOLVE METHOD NAMES
+    # -----------------------
+    data_dict = {}
+
+    has_dr = ("DR-SNE" in raw_data) or ("DRSNE" in raw_data)
+    has_density = ("Density t-SNE" in raw_data)
+
+    for method in METHODS:
+
+        if method == "DR-SNE":
+            if "DR-SNE" in raw_data:
+                key = "DR-SNE"
+            elif "DRSNE" in raw_data:
+                key = "DRSNE"
+            elif has_density:
+                key = "Density t-SNE"
+            else:
+                continue
+        else:
+            key = method
+
+        if key not in raw_data:
+            continue
+
+        data_dict[method] = raw_data[key]
 
     return data_dict
 
@@ -109,11 +129,13 @@ def plot_grid(datasets, filename):
             y = data["y"]
             rho = data["rho"]
 
+            # plot low-density first
             if rho is not None:
                 order = np.argsort(rho)
                 Z = Z[order]
                 y = y[order]
 
+            # styling
             if "spiral" in dataset:
                 s_val = 2
                 alpha_val = 0.6
@@ -159,7 +181,7 @@ def plot_grid(datasets, filename):
 if __name__ == "__main__":
 
     plot_grid(
-        datasets=["pbmc", "fashion_mnist", "tumor"],
+        datasets=["pbmc", "fashion_mnist", "shuttle"],
         filename="comparison_main.png"
     )
 

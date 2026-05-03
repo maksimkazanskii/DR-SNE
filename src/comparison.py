@@ -33,6 +33,7 @@ def run_drsne(
         P=P,
         knn_indices=knn_indices,
         rho_high=rho_high,
+        n_iter = 1000,
         lambda_density=lambda_density,
         seed=seed,
         verbose=False
@@ -286,7 +287,7 @@ def tune_1d_method(
                 X,
                 seed,
                 lambda_density=param_value,
-                k_density=30,
+                k_density=300,
                 knn_indices=knn_indices,
                 rho_high=rho_high,
                 P=P

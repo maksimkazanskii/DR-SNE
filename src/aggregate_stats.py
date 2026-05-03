@@ -3,7 +3,7 @@ import glob
 import pandas as pd
 import numpy as np
 
-INPUT_DIR = "/output/comparison_seeds_best_legacy4"
+INPUT_DIR = "/output/comparison_seeds_best"
 
 METHODS = ["t-SNE", "UMAP", "PaCMAP", "DensMAP", "Density t-SNE", "DENSNE"]
 

@@ -1,7 +1,5 @@
 import os
 import sys
-import warnings
-import numpy as np
 import torch
 import umap
 import pacmap
@@ -10,8 +8,6 @@ from sklearn.ensemble import IsolationForest
 from sklearn.manifold import TSNE
 from sklearn.metrics import roc_auc_score, average_precision_score, pairwise_distances
 from sklearn.neighbors import NearestNeighbors, LocalOutlierFactor
-from sklearn.preprocessing import StandardScaler
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from DRSNE.drsne import drsne
 from datasets import (
@@ -26,12 +22,9 @@ from datasets import (
     load_swiss_density
 )
 
-import os
-import sys
-import numpy as np
 
 import sys
-sys.path.append("/tsne/densvis/densne")
+sys.path.append("densvis/densne")
 
 import densne
 
@@ -272,7 +265,7 @@ def embed_drsne_2d(X, dim, seed, lambda_density, k_density):
         P=P,
         knn_indices=knn_indices,
         rho_high=rho_high,
-        n_iter=600,
+        n_iter=1200,
         warmup=50,
         lr=2.0,
         lambda_density=lambda_density,
@@ -510,7 +503,7 @@ def run_experiment_2d(X, y, dataset_name, dim=2, seeds=[0]):
                     all_results.append(res)
 
     run_grid("DR-SNE", embed_drsne_2d, DRSNE_LAMBDA, DRSNE_K, "lambda", "k_density")
-
+    """
     run_grid("DenSNE", embed_densne_2d, DENSNE_PERP, DENSNE_LAMBDA, "perplexity", "dens_lambda")
 
     run_grid("t-SNE", embed_tsne_2d, TSNE_PERP, TSNE_LR, "perplexity", "learning_rate")
@@ -520,7 +513,7 @@ def run_experiment_2d(X, y, dataset_name, dim=2, seeds=[0]):
     run_grid("DensMAP", embed_densmap_2d, DENSMAP_LAMBDA, DENSMAP_FRAC, "dens_lambda", "dens_frac")
 
     run_grid("PaCMAP", embed_pacmap_2d, PACMAP_NN, PACMAP_FP, "n_neighbors", "FP_ratio")
-
+    """
 
 
     # =====================================================
@@ -548,14 +541,14 @@ if __name__ == "__main__":
     # DATASETS
     # =========================================================
     DATASETS = {
+        "fashion": load_fashion_anomaly,
+        "synthetic": load_spiral,
         "thyroid": load_tumor,
         "pbmc": load_pbmc,
         "shuttle": load_shuttle,
         "fashion_dino": load_fashion_dino,
         "cifar": load_resnet_cifar10,
-        "swiss": load_swiss_density,
-        "fashion": load_fashion_anomaly,
-        "synthetic": load_spiral,
+
     }
 
     # =========================================================
